@@ -166,6 +166,8 @@
                 cursor: pointer;
                 background: rgba(255, 255, 255, 0.02);
                 transition: all 0.2s ease;
+                position: relative;
+                overflow: hidden;
             }
 
             #dropzone:hover {
@@ -184,6 +186,14 @@
                 color: var(--text-muted);
                 font-size: 0.9rem;
                 font-weight: 500;
+            }
+            #dropzone .file-input {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                opacity: 0;
+                cursor: pointer;
             }
 
             /* --- FILE LIST (Send) --- */
@@ -423,12 +433,7 @@
                 <div id="dropzone">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
                     <p>Click or drag files here</p>
-                    <input
-                        id="file-input"
-                        type="file"
-                        multiple
-                        class="hidden"
-                    />
+                    <input id="file-input" type="file" multiple class="file-input" />
                 </div>
 
                 <div id="file-list"></div>
@@ -558,7 +563,6 @@
                 renderFiles();
             }
 
-            dropzone.addEventListener("click", () => fileInput.click());
             dropzone.addEventListener("dragover", (e) => {
                 e.preventDefault();
                 dropzone.style.borderColor = "var(--primary)";
