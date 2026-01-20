@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>DataBeam</title>
+        <link rel="icon" href="favicon.ico">
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        />
+        <style>
+            /* --- RESET & VARIABLES --- */
+            :root {
+                --bg: #09090b;
+                --surface: #18181b;
+                --surface-hover: #27272a;
+                --border: #27272a;
+                --primary: #6366f1;
+                --primary-hover: #4f46e5;
+                --text: #e4e4e7;
+                --text-muted: #a1a1aa;
+                --danger: #ef4444;
+                --success: #10b981;
+                --radius: 16px;
+                --font: "Inter", system-ui, sans-serif;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+                outline: none;
+            }
+
+            body {
+                background-color: var(--bg);
+                background-image: radial-gradient(
+                    circle at 50% 0%,
+                    #1e1b4b,
+                    transparent 40%
+                );
+                color: var(--text);
+                font-family: var(--font);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 2rem 1rem;
+                -webkit-font-smoothing: antialiased;
+            }
+
+            /* --- LAYOUT --- */
+            .app-container {
+                width: 100%;
+                max-width: 480px;
+                display: flex;
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+
+            header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 0.5rem;
+            }
+
+            .brand {
+                font-weight: 700;
+                font-size: 1.5rem;
+                letter-spacing: -0.03em;
+                background: linear-gradient(to right, #fff, #a5b4fc);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .status-pill {
+                font-size: 0.75rem;
+                font-weight: 500;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                padding: 6px 12px;
+                border-radius: 99px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                transition: all 0.3s ease;
+            }
+
+            .status-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background-color: var(--text-muted);
+                box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+                transition: background-color 0.3s ease;
+            }
+
+            /* --- CARDS --- */
+            .card {
+                background: rgba(24, 24, 27, 0.6);
+                backdrop-filter: blur(12px);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                padding: 1.5rem;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+                transition:
+                    transform 0.2s ease,
+                    opacity 0.2s ease;
+            }
+
+            .card-title {
+                font-size: 1.1rem;
+                font-weight: 600;
+                margin-bottom: 0.25rem;
+                color: #fff;
+            }
+
+            .card-desc {
+                color: var(--text-muted);
+                font-size: 0.875rem;
+                margin-bottom: 1.5rem;
+            }
+
+            /* --- OTP INPUTS --- */
+            .otp-container {
+                display: flex;
+                gap: 8px;
+                justify-content: center;
+            }
+
+            .otp-input {
+                width: 100%;
+                height: 56px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                color: #fff;
+                font-size: 1.5rem;
+                text-align: center;
+                font-family: monospace;
+                transition: all 0.2s ease;
+            }
+
+            .otp-input:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+            }
+
+            /* --- DROPZONE --- */
+            #dropzone {
+                border: 2px dashed var(--border);
+                border-radius: 12px;
+                padding: 2.5rem 1rem;
+                text-align: center;
+                cursor: pointer;
+                background: rgba(255, 255, 255, 0.02);
+                transition: all 0.2s ease;
+            }
+
+            #dropzone:hover {
+                border-color: var(--primary);
+                background: rgba(99, 102, 241, 0.05);
+            }
+
+            #dropzone i {
+                font-size: 1.5rem;
+                color: var(--text-muted);
+                margin-bottom: 0.75rem;
+                display: block;
+            }
+
+            #dropzone p {
+                color: var(--text-muted);
+                font-size: 0.9rem;
+                font-weight: 500;
+            }
+
+            /* --- FILE LIST (Send) --- */
+            #file-list {
+                margin-top: 2rem; /* INCREASED MARGIN HERE */
+                display: flex;
+                flex-direction: column;
+                gap: 12px; /* Gap between files */
+            }
+
+            .file-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 12px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                animation: fadeIn 0.3s ease;
+            }
+
+            .file-info h4 {
+                font-size: 0.9rem;
+                font-weight: 500;
+                color: #fff;
+                margin-bottom: 2px;
+            }
+
+            .file-info span {
+                font-size: 0.75rem;
+                color: var(--text-muted);
+            }
+
+            .btn-icon {
+                background: transparent;
+                border: none;
+                color: var(--text-muted);
+                padding: 8px;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .btn-icon:hover {
+                background: rgba(239, 68, 68, 0.1);
+                color: var(--danger);
+            }
+
+            /* --- ACTIONS --- */
+            .actions {
+                display: flex;
+                gap: 10px;
+                margin-top: 1.5rem;
+            }
+
+            .btn {
+                border: none;
+                padding: 0 1.5rem;
+                height: 48px;
+                border-radius: 12px;
+                font-weight: 600;
+                font-size: 0.95rem;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .btn-primary {
+                background: var(--primary);
+                color: white;
+                flex: 1;
+            }
+
+            .btn-primary:hover:not(:disabled) {
+                background: var(--primary-hover);
+                transform: translateY(-1px);
+            }
+
+            .btn-primary:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            .btn-primary.is-static {
+                font-family: monospace;
+                font-size: 1.2rem;
+                letter-spacing: 2px;
+                background: var(--surface);
+                border: 1px solid var(--primary);
+                color: var(--primary);
+                cursor: default;
+            }
+
+            .btn-secondary {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                color: var(--text);
+                width: 48px;
+            }
+
+            .btn-secondary:hover {
+                border-color: var(--text-muted);
+                background: var(--surface-hover);
+            }
+
+            /* --- TRANSFER LOG (Receive/Progress) --- */
+            #transfer-log {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .log-item {
+                display: block;
+                padding: 16px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                animation: fadeIn 0.3s ease;
+            }
+
+            .log-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+            }
+
+            .tag {
+                font-size: 0.7rem;
+                padding: 4px 8px;
+                border-radius: 6px;
+                background: rgba(255, 255, 255, 0.1);
+                color: var(--text-muted);
+                font-weight: 600;
+                text-transform: uppercase;
+            }
+
+            progress {
+                width: 100%;
+                height: 6px;
+                border-radius: 99px;
+                appearance: none;
+                border: none;
+                background: rgba(255, 255, 255, 0.1);
+            }
+
+            progress::-webkit-progress-bar {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 99px;
+            }
+            progress::-webkit-progress-value {
+                background: var(--primary);
+                border-radius: 99px;
+                transition: width 0.2s;
+            }
+            progress::-moz-progress-bar {
+                background: var(--primary);
+                border-radius: 99px;
+            }
+
+            /* --- UTILITIES --- */
+            .hidden {
+                display: none !important;
+            }
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(5px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="app-container">
+            <header>
+                <div class="brand">
+                    <i class="fa-solid fa-bolt"></i> DataBeam
+                </div>
+                <div class="status-pill" id="status-pill">
+                    <span class="status-dot"></span>
+                    <span id="status-text">Idle</span>
+                </div>
+            </header>
+
+            <!-- Receive Card -->
+            <div id="recv-box" class="card">
+                <div class="card-title">Receive Files</div>
+                <div class="card-desc">Enter the 6-digit code to connect.</div>
+                <div class="otp-container" id="otp-wrap">
+                    <input
+                        class="otp-input"
+                        maxlength="1"
+                        inputmode="numeric"
+                    />
+                    <input
+                        class="otp-input"
+                        maxlength="1"
+                        inputmode="numeric"
+                    />
+                    <input
+                        class="otp-input"
+                        maxlength="1"
+                        inputmode="numeric"
+                    />
+                    <input
+                        class="otp-input"
+                        maxlength="1"
+                        inputmode="numeric"
+                    />
+                    <input
+                        class="otp-input"
+                        maxlength="1"
+                        inputmode="numeric"
+                    />
+                    <input
+                        class="otp-input"
+                        maxlength="1"
+                        inputmode="numeric"
+                    />
+                </div>
+            </div>
+
+            <!-- Send Card -->
+            <div id="send-box" class="card">
+                <div class="card-title">Send Files</div>
+                <div class="card-desc">
+                    Secure P2P transfer directly to your peer.
+                </div>
+
+                <div id="dropzone">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <p>Click or drag files here</p>
+                    <input
+                        id="file-input"
+                        type="file"
+                        multiple
+                        class="hidden"
+                    />
+                </div>
+
+                <div id="file-list"></div>
+
+                <div class="actions">
+                    <button id="upload-btn" class="btn btn-primary" disabled>
+                        Start Transfer
+                    </button>
+                    <button
+                        id="copy-btn"
+                        class="btn btn-secondary hidden"
+                        title="Copy code"
+                    >
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Transfer Log Area -->
+            <div id="transfer-log"></div>
+        </div>
+
+        <!-- Templates -->
+        <template id="file-row-tpl">
+            <div class="file-item" data-id>
+                <div class="file-info">
+                    <h4 class="name">filename.ext</h4>
+                    <span class="size">2.4 MB</span>
+                </div>
+                <button class="btn-icon remove" title="Remove">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </template>
+
+        <template id="transfer-tpl">
+            <div class="log-item" data-tid>
+                <div class="log-header">
+                    <div class="file-info">
+                        <h4 data-name>filename.ext</h4>
+                        <span data-detail>Sending...</span>
+                    </div>
+                    <span data-state class="tag">Pending</span>
+                </div>
+                <progress value="0" max="100"></progress>
+            </div>
+        </template>
+
+        <script type="module">
+            const otpInputs = Array.from(
+                document.querySelectorAll("#otp-wrap input"),
+            );
+            const uploadBtn = document.getElementById("upload-btn");
+            const copyBtn = document.getElementById("copy-btn");
+            const dropzone = document.getElementById("dropzone");
+            const fileInput = document.getElementById("file-input");
+            const fileList = document.getElementById("file-list");
+            const recvBox = document.getElementById("recv-box");
+            const sendBox = document.getElementById("send-box");
+            const statusText = document.getElementById("status-text");
+            const statusDot = document.querySelector(".status-dot");
+            const transferLog = document.getElementById("transfer-log");
+            const fileTpl = document.getElementById("file-row-tpl");
+            const transferTpl = document.getElementById("transfer-tpl");
+
+            const peerId = crypto.randomUUID();
+            const iceServers = [{ urls: "stun:stun.l.google.com:19302" }];
+            const chunkSize = 16 * 1024;
+
+            let role = null; // 'sender' | 'receiver'
+            let currentPin = null;
+            let ws, pc, dataChannel;
+            let offerStarted = false;
+            let receiveStarted = false;
+            const queue = []; // Files to send
+            const incoming = new Map();
+
+            function setStatus(text, color = "#10b981") {
+                statusText.textContent = text;
+                statusDot.style.backgroundColor = color;
+                statusDot.style.boxShadow = `0 0 10px ${color}`;
+            }
+
+            function fmtSize(bytes) {
+                if (bytes < 1024) return `${bytes} B`;
+                const units = ["KB", "MB", "GB", "TB"];
+                let i = -1;
+                do {
+                    bytes /= 1024;
+                    i++;
+                } while (bytes >= 1024 && i < units.length - 1);
+                return `${bytes.toFixed(1)} ${units[i]}`;
+            }
+
+            function renderFiles() {
+                fileList.innerHTML = "";
+                queue.forEach((file, idx) => {
+                    const row =
+                        fileTpl.content.firstElementChild.cloneNode(true);
+                    row.dataset.id = idx;
+                    row.querySelector(".name").textContent = file.name;
+                    row.querySelector(".size").textContent = fmtSize(file.size);
+                    row.querySelector(".remove").addEventListener(
+                        "click",
+                        () => {
+                            queue.splice(idx, 1);
+                            renderFiles();
+                            if (!queue.length) {
+                                uploadBtn.disabled = true;
+                                uploadBtn.textContent = "Start Transfer";
+                                copyBtn.classList.add("hidden");
+                                recvBox.classList.remove("hidden");
+                                setStatus("Idle", "#a1a1aa");
+                            }
+                        },
+                    );
+                    fileList.appendChild(row);
+                });
+                if (queue.length) {
+                    uploadBtn.disabled = false;
+                    recvBox.classList.add("hidden");
+                }
+            }
+
+            function addFiles(list) {
+                for (const f of list) queue.push(f);
+                renderFiles();
+            }
+
+            dropzone.addEventListener("click", () => fileInput.click());
+            dropzone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                dropzone.style.borderColor = "var(--primary)";
+                dropzone.style.background = "rgba(99,102,241,0.1)";
+            });
+            dropzone.addEventListener("dragleave", () => {
+                dropzone.style.borderColor = "";
+                dropzone.style.background = "";
+            });
+            dropzone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                dropzone.style.borderColor = "";
+                dropzone.style.background = "";
+                addFiles(e.dataTransfer.files);
+            });
+            fileInput.addEventListener("change", (e) =>
+                addFiles(e.target.files),
+            );
+
+            uploadBtn.addEventListener("click", () => {
+                if (!queue.length || uploadBtn.disabled) return;
+                role = "sender";
+                const pin = String(Math.floor(100000 + Math.random() * 900000));
+                currentPin = pin;
+                uploadBtn.textContent = pin;
+                copyBtn.classList.remove("hidden");
+                uploadBtn.classList.add("is-static");
+                uploadBtn.disabled = true;
+                connectWs(pin);
+            });
+
+            copyBtn.addEventListener("click", async () => {
+                if (!currentPin) return;
+                try {
+                    await navigator.clipboard.writeText(currentPin);
+                    setStatus("Code copied", "#10b981");
+                } catch (_) {
+                    setStatus("Copy failed", "#ef4444");
+                }
+            });
+
+            otpInputs.forEach((input, idx) => {
+                input.addEventListener("input", () => {
+                    input.value = input.value.replace(/\D/g, "").slice(0, 1);
+                    if (input.value && otpInputs[idx + 1])
+                        otpInputs[idx + 1].focus();
+                    maybeAutoReceive();
+                });
+                input.addEventListener("keydown", (e) => {
+                    if (
+                        e.key === "Backspace" &&
+                        !input.value &&
+                        otpInputs[idx - 1]
+                    )
+                        otpInputs[idx - 1].focus();
+                });
+                input.addEventListener("paste", (e) => {
+                    const text = (e.clipboardData || window.clipboardData)
+                        .getData("text")
+                        .replace(/\D/g, "")
+                        .slice(0, 6);
+                    if (!text) return;
+                    e.preventDefault();
+                    otpInputs.forEach(
+                        (inp, i) => (inp.value = text[i] ? text[i] : ""),
+                    );
+                    if (text.length === 6) maybeAutoReceive();
+                });
+            });
+
+            function maybeAutoReceive() {
+                const pin = otpInputs.map((i) => i.value.trim()).join("");
+                if (
+                    pin.length === 6 &&
+                    /^\d{6}$/.test(pin) &&
+                    !receiveStarted
+                ) {
+                    receiveStarted = true;
+                    role = "receiver";
+                    sendBox.classList.add("hidden");
+                    recvBox.classList.remove("hidden");
+                    connectWs(pin);
+                }
+            }
+
+            function connectWs(pin) {
+                if (ws) ws.close();
+                const wsUrl = new URL(`/ws/${pin}`, window.location.origin);
+                wsUrl.protocol = wsUrl.protocol.replace("http", "ws");
+                ws = new WebSocket(wsUrl);
+                setStatus("Connecting…", "#f59e0b");
+                ws.onopen = () => {
+                    setStatus("Signaling ready", "#10b981");
+                    initPeerConnection();
+                    sendSignal({ type: "join" });
+                };
+                ws.onclose = () => setStatus("Disconnected", "#ef4444");
+                ws.onerror = () => setStatus("Signal error", "#ef4444");
+                ws.onmessage = async (ev) => {
+                    const msg = JSON.parse(ev.data);
+                    if (msg.sender === peerId) return;
+                    if (msg.type === "join") {
+                        if (role === "receiver") sendSignal({ type: "ready" });
+                        if (role === "sender" && !offerStarted) beginOffer();
+                    } else if (msg.type === "ready") {
+                        if (role === "sender" && !offerStarted) beginOffer();
+                    } else if (msg.type === "offer") {
+                        await pc.setRemoteDescription(
+                            new RTCSessionDescription(msg.sdp),
+                        );
+                        const answer = await pc.createAnswer();
+                        await pc.setLocalDescription(answer);
+                        sendSignal({ type: "answer", sdp: answer });
+                    } else if (msg.type === "answer") {
+                        await pc.setRemoteDescription(
+                            new RTCSessionDescription(msg.sdp),
+                        );
+                    } else if (msg.type === "candidate") {
+                        try {
+                            await pc.addIceCandidate(
+                                new RTCIceCandidate(msg.candidate),
+                            );
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    }
+                };
+            }
+
+            function sendSignal(payload) {
+                ws?.send(JSON.stringify({ sender: peerId, ...payload }));
+            }
+
+            function initPeerConnection() {
+                pc = new RTCPeerConnection({ iceServers });
+                if (role === "sender") {
+                    dataChannel = pc.createDataChannel("files", {
+                        ordered: true,
+                    });
+                    bindDataChannel(dataChannel);
+                }
+                pc.onicecandidate = ({ candidate }) => {
+                    if (candidate) sendSignal({ type: "candidate", candidate });
+                };
+                pc.oniceconnectionstatechange = () =>
+                    setStatus(
+                        pc.iceConnectionState,
+                        pc.iceConnectionState === "connected"
+                            ? "#10b981"
+                            : "#f59e0b",
+                    );
+                pc.onconnectionstatechange = () =>
+                    setStatus(
+                        pc.connectionState,
+                        pc.connectionState === "connected"
+                            ? "#10b981"
+                            : "#ef4444",
+                    );
+                pc.ondatachannel = (ev) => {
+                    dataChannel = ev.channel;
+                    bindDataChannel(dataChannel);
+                };
+            }
+
+            async function beginOffer() {
+                if (offerStarted) return;
+                offerStarted = true;
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                sendSignal({ type: "offer", sdp: offer });
+                setStatus("Offer sent", "#3b82f6");
+            }
+
+            function bindDataChannel(channel) {
+                channel.binaryType = "arraybuffer";
+                channel.bufferedAmountLowThreshold = 64 * 1024;
+                channel.onopen = () => {
+                    setStatus("Peer linked", "#10b981");
+                    if (role === "sender") sendQueuedFiles();
+                };
+                channel.onclose = () => setStatus("Closed", "#ef4444");
+                channel.onerror = () => setStatus("Closed", "#ef4444");
+                channel.onmessage = handleData;
+            }
+
+            function addTransfer(id, name, size, dir) {
+                const node =
+                    transferTpl.content.firstElementChild.cloneNode(true);
+                node.dataset.tid = id;
+                node.querySelector("[data-name]").textContent = name;
+                node.querySelector("[data-detail]").textContent =
+                    `${dir} · ${fmtSize(size)}`;
+                transferLog.prepend(node);
+            }
+
+            function updateTransfer(id, ratio, status, detail) {
+                const row = transferLog.querySelector(`[data-tid="${id}"]`);
+                if (!row) return;
+                const prog = row.querySelector("progress");
+                if (ratio != null) prog.value = Math.floor(ratio * 100);
+                if (status)
+                    row.querySelector("[data-state]").textContent = status;
+                if (detail)
+                    row.querySelector("[data-detail]").textContent = detail;
+            }
+
+            function completeTransfer(
+                id,
+                url,
+                statusText = "Done",
+                detailText = null,
+            ) {
+                const row = transferLog.querySelector(`[data-tid="${id}"]`);
+                if (!row) return;
+                updateTransfer(id, 1, statusText, detailText);
+                const stateBadge = row.querySelector("[data-state]");
+                stateBadge.style.color = "var(--success)";
+                stateBadge.style.background = "rgba(16, 185, 129, 0.1)";
+
+                // Auto-download logic
+                if (url) {
+                    const name =
+                        row.querySelector("[data-name]").textContent || "file";
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = name;
+                    a.style.display = "none";
+                    document.body.appendChild(a);
+                    a.click();
+
+                    // Clean up
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 1000);
+                }
+            }
+
+            async function sendQueuedFiles() {
+                for (const file of queue) {
+                    await sendFile(file);
+                }
+            }
+
+            async function sendFile(file) {
+                const id = Math.floor(Math.random() * 2 ** 32);
+                addTransfer(id, file.name, file.size, "Sending");
+                dataChannel.send(
+                    JSON.stringify({
+                        kind: "meta",
+                        id,
+                        name: file.name,
+                        size: file.size,
+                        mime: file.type,
+                    }),
+                );
+                const reader = file.stream().getReader();
+                let sent = 0;
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    const buf =
+                        value instanceof ArrayBuffer
+                            ? new Uint8Array(value)
+                            : new Uint8Array(value.buffer || value);
+                    for (
+                        let offset = 0;
+                        offset < buf.byteLength;
+                        offset += chunkSize
+                    ) {
+                        if (!dataChannel || dataChannel.readyState !== "open")
+                            return;
+                        const slice = buf.subarray(offset, offset + chunkSize);
+                        const packet = new Uint8Array(4 + slice.byteLength);
+                        new DataView(packet.buffer).setUint32(0, id);
+                        packet.set(slice, 4);
+                        await throttle();
+                        dataChannel.send(packet);
+                        sent += slice.byteLength;
+                        updateTransfer(id, sent / file.size, "Sending");
+                    }
+                }
+                dataChannel.send(JSON.stringify({ kind: "done", id }));
+                completeTransfer(id, null, "Sent");
+            }
+
+            function throttle() {
+                if (
+                    dataChannel.bufferedAmount <
+                    dataChannel.bufferedAmountLowThreshold
+                )
+                    return Promise.resolve();
+                return new Promise((res) => {
+                    const handler = () => {
+                        dataChannel.removeEventListener(
+                            "bufferedamountlow",
+                            handler,
+                        );
+                        res();
+                    };
+                    dataChannel.addEventListener("bufferedamountlow", handler);
+                });
+            }
+
+            function handleData(ev) {
+                if (typeof ev.data === "string") {
+                    const msg = JSON.parse(ev.data);
+                    if (msg.kind === "meta") {
+                        incoming.set(msg.id, {
+                            ...msg,
+                            received: 0,
+                            chunks: [],
+                        });
+                        addTransfer(msg.id, msg.name, msg.size, "Receiving");
+                    } else if (msg.kind === "done") {
+                        const entry = incoming.get(msg.id);
+                        if (entry) finalizeFile(msg.id, entry);
+                    }
+                    return;
+                }
+                const view = new DataView(ev.data);
+                const id = view.getUint32(0);
+                const chunk = ev.data.slice(4);
+                const entry = incoming.get(id);
+                if (!entry) return;
+                entry.chunks.push(chunk);
+                entry.received += chunk.byteLength;
+                updateTransfer(id, entry.received / entry.size, "Receiving");
+            }
+
+            function finalizeFile(id, entry) {
+                const blob = new Blob(entry.chunks, {
+                    type: entry.mime || "application/octet-stream",
+                });
+                const url = URL.createObjectURL(blob);
+                // Removed link creation here, it is now handled in completeTransfer with auto-click
+                completeTransfer(
+                    id,
+                    url,
+                    "Saved",
+                    `Received · ${fmtSize(entry.size)}`,
+                );
+                incoming.delete(id);
+            }
+        </script>
+    </body>
+</html>
