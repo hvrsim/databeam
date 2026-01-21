@@ -582,16 +582,25 @@
                 addFiles(e.target.files),
             );
 
-            uploadBtn.addEventListener("click", () => {
+            uploadBtn.addEventListener("click", async () => {
                 if (!queue.length || uploadBtn.disabled) return;
                 role = "sender";
-                const pin = String(Math.floor(100000 + Math.random() * 900000));
-                currentPin = pin;
-                uploadBtn.textContent = pin;
-                copyBtn.classList.remove("hidden");
-                uploadBtn.classList.add("is-static");
                 uploadBtn.disabled = true;
-                connectWs(pin);
+                try {
+                    const res = await fetch("/pin");
+                    if (!res.ok) throw new Error("pin fetch failed");
+                    const data = await res.json();
+                    const pin = String(data.pin || "");
+                    if (!/^\d{6}$/.test(pin)) throw new Error("invalid pin");
+                    currentPin = pin;
+                    uploadBtn.textContent = pin;
+                    copyBtn.classList.remove("hidden");
+                    uploadBtn.classList.add("is-static");
+                    connectWs(pin);
+                } catch (_) {
+                    uploadBtn.disabled = false;
+                    setStatus("Pin error", "#ef4444");
+                }
             });
 
             copyBtn.addEventListener("click", async () => {
