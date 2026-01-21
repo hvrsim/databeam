@@ -29,4 +29,4 @@ docker run --rm -p 8080:8080 databeam
 
 WebRTC works best over HTTPS/WSS outside of localhost; for public hosting you should put this behind a reverse proxy with TLS. Some networks also need a TURN server for reliable connectivity; databeam ships with a public STUN server only. The 6‑digit code is convenience, not authentication.
 
-Copyright (c) 2026 hvrsim. Released under the MIT License.
+**Copyright (c) 2026 hvrsim. Released under the MIT License.**

@@ -67,7 +67,6 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{Router, get},
 };
-use fastrand;
 use futures_util::{SinkExt, StreamExt};
 use serde::Serialize;
 use tokio::{
@@ -106,26 +105,46 @@ impl PinBitmap {
         }
     }
 
-    /// Atomically allocates the first available PIN using fast bit manipulation.
+    /// Atomically allocates a random available PIN using fast bit manipulation.
     ///
-    /// Uses trailing_zeros() on inverted bitmask for O(1) bit finding, then
-    /// compare-and-swap for lock-free allocation.
+    /// Attempts random allocation first to avoid sequential pins; falls back
+    /// to a linear scan only under heavy contention.
     fn allocate_pin(&self) -> Option<u32> {
+        for _ in 0..256 {
+            let pin = fastrand::usize(0..MAX_PINS);
+            let chunk_idx = pin / 64;
+            let bit_idx = pin % 64;
+            let chunk = &self.chunks[chunk_idx];
+            let mask = 1u64 << bit_idx;
+            let current = chunk.load(Ordering::Acquire);
+            if current & mask != 0 {
+                continue;
+            }
+            if chunk
+                .compare_exchange_weak(
+                    current,
+                    current | mask,
+                    Ordering::Release,
+                    Ordering::Acquire,
+                )
+                .is_ok()
+            {
+                return Some(pin as u32);
+            }
+        }
+
+        // Fallback: linear scan if random attempts collide or near exhaustion.
         for (chunk_idx, chunk) in self.chunks.iter().enumerate() {
             let mut current = chunk.load(Ordering::Acquire);
-
             loop {
                 if current == u64::MAX {
                     break;
                 }
-
                 let first_zero_bit = (!current).trailing_zeros() as usize;
-
                 let pin = chunk_idx * 64 + first_zero_bit;
                 if pin >= MAX_PINS {
-                    break; // Exceeded valid PIN range
+                    break;
                 }
-
                 let new_value = current | (1u64 << first_zero_bit);
                 match chunk.compare_exchange_weak(
                     current,
