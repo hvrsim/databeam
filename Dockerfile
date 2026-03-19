@@ -1,13 +1,20 @@
-FROM rust:1.85-slim AS builder
+FROM golang:1.25-bookworm AS builder
 WORKDIR /app
-COPY Cargo.toml Cargo.lock ./
-COPY src ./src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY cmd ./cmd
+COPY internal ./internal
 COPY web ./web
-RUN cargo build --release
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /out/databeam ./cmd/databeam
 
 FROM debian:bookworm-slim
 WORKDIR /app
-COPY --from=builder /app/target/release/databeam /app/databeam
+
+COPY --from=builder /out/databeam /app/databeam
 COPY --from=builder /app/web /app/web
+
 EXPOSE 8080
 CMD ["/app/databeam"]
