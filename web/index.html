@@ -502,19 +502,48 @@
             const peerId = crypto.randomUUID();
             const iceServers = [{ urls: "stun:stun.l.google.com:19302" }];
             const chunkSize = 16 * 1024;
+            const statusColors = {
+                idle: "#a1a1aa",
+                waiting: "#f59e0b",
+                connected: "#10b981",
+                disconnected: "#ef4444",
+            };
 
             let role = null; // 'sender' | 'receiver'
             let currentPin = null;
             let ws, pc, dataChannel;
             let offerStarted = false;
             let receiveStarted = false;
-            const queue = []; // Files to send
+            const queue = []; // { file, status, transferId }
             const incoming = new Map();
+            let sendLoopActive = false;
 
-            function setStatus(text, color = "#10b981") {
+            function setStatus(text, tone = "idle") {
+                const color = statusColors[tone] || statusColors.idle;
                 statusText.textContent = text;
                 statusDot.style.backgroundColor = color;
                 statusDot.style.boxShadow = `0 0 10px ${color}`;
+            }
+
+            function getSessionTone() {
+                if (
+                    dataChannel &&
+                    dataChannel.readyState === "open" &&
+                    pc &&
+                    pc.connectionState === "connected"
+                ) {
+                    return "connected";
+                }
+
+                if (
+                    ws &&
+                    ws.readyState === WebSocket.OPEN &&
+                    (currentPin || receiveStarted)
+                ) {
+                    return "waiting";
+                }
+
+                return currentPin || receiveStarted ? "waiting" : "idle";
             }
 
             function fmtSize(bytes) {
@@ -530,37 +559,59 @@
 
             function renderFiles() {
                 fileList.innerHTML = "";
-                queue.forEach((file, idx) => {
+                queue.forEach((entry, idx) => {
                     const row =
                         fileTpl.content.firstElementChild.cloneNode(true);
                     row.dataset.id = idx;
-                    row.querySelector(".name").textContent = file.name;
-                    row.querySelector(".size").textContent = fmtSize(file.size);
-                    row.querySelector(".remove").addEventListener(
-                        "click",
-                        () => {
+                    row.querySelector(".name").textContent = entry.file.name;
+                    row.querySelector(".size").textContent =
+                        `${fmtSize(entry.file.size)} · ${entry.status}`;
+                    const removeBtn = row.querySelector(".remove");
+                    if (entry.status !== "queued") {
+                        removeBtn.disabled = true;
+                        removeBtn.style.opacity = "0.35";
+                        removeBtn.style.cursor = "not-allowed";
+                    } else {
+                        removeBtn.addEventListener("click", () => {
                             queue.splice(idx, 1);
                             renderFiles();
-                            if (!queue.length) {
-                                uploadBtn.disabled = true;
-                                uploadBtn.textContent = "Start Transfer";
-                                copyBtn.classList.add("hidden");
-                                recvBox.classList.remove("hidden");
-                                setStatus("Idle", "#a1a1aa");
-                            }
-                        },
-                    );
+                            syncSenderControls();
+                        });
+                    }
                     fileList.appendChild(row);
                 });
-                if (queue.length) {
-                    uploadBtn.disabled = false;
-                    recvBox.classList.add("hidden");
-                }
+                syncSenderControls();
             }
 
             function addFiles(list) {
-                for (const f of list) queue.push(f);
+                for (const file of list) {
+                    queue.push({ file, status: "queued", transferId: null });
+                }
+                fileInput.value = "";
                 renderFiles();
+                maybeSendQueuedFiles();
+            }
+
+            function syncSenderControls() {
+                const hasQueuedFiles = queue.some((entry) => entry.status === "queued");
+                if (queue.length) {
+                    recvBox.classList.add("hidden");
+                } else if (!currentPin) {
+                    recvBox.classList.remove("hidden");
+                    setStatus("Idle", "idle");
+                }
+
+                if (currentPin) {
+                    uploadBtn.disabled = true;
+                    return;
+                }
+
+                uploadBtn.disabled = !hasQueuedFiles;
+                if (!queue.length) {
+                    uploadBtn.textContent = "Start Transfer";
+                    uploadBtn.classList.remove("is-static");
+                    copyBtn.classList.add("hidden");
+                }
             }
 
             dropzone.addEventListener("dragover", (e) => {
@@ -599,7 +650,7 @@
                     connectWs(pin);
                 } catch (_) {
                     uploadBtn.disabled = false;
-                    setStatus("Pin error", "#ef4444");
+                    setStatus("Pin error", "disconnected");
                 }
             });
 
@@ -607,9 +658,9 @@
                 if (!currentPin) return;
                 try {
                     await navigator.clipboard.writeText(currentPin);
-                    setStatus("Code copied", "#10b981");
+                    setStatus("Code copied", getSessionTone());
                 } catch (_) {
-                    setStatus("Copy failed", "#ef4444");
+                    setStatus("Copy failed", "disconnected");
                 }
             });
 
@@ -662,14 +713,16 @@
                 const wsUrl = new URL(`/ws/${pin}`, window.location.origin);
                 wsUrl.protocol = wsUrl.protocol.replace("http", "ws");
                 ws = new WebSocket(wsUrl);
-                setStatus("Connecting…", "#f59e0b");
+                setStatus("Connecting…", "waiting");
                 ws.onopen = () => {
-                    setStatus("Signaling ready", "#10b981");
                     initPeerConnection();
                     sendSignal({ type: "join" });
                 };
-                ws.onclose = () => setStatus("Disconnected", "#ef4444");
-                ws.onerror = () => setStatus("Signal error", "#ef4444");
+                ws.onclose = () => {
+                    sendLoopActive = false;
+                    setStatus("Disconnected", "disconnected");
+                };
+                ws.onerror = () => setStatus("Signal error", "disconnected");
                 ws.onmessage = async (ev) => {
                     const msg = JSON.parse(ev.data);
                     if (msg.sender === peerId) return;
@@ -716,20 +769,30 @@
                 pc.onicecandidate = ({ candidate }) => {
                     if (candidate) sendSignal({ type: "candidate", candidate });
                 };
-                pc.oniceconnectionstatechange = () =>
-                    setStatus(
-                        pc.iceConnectionState,
-                        pc.iceConnectionState === "connected"
-                            ? "#10b981"
-                            : "#f59e0b",
-                    );
-                pc.onconnectionstatechange = () =>
-                    setStatus(
-                        pc.connectionState,
-                        pc.connectionState === "connected"
-                            ? "#10b981"
-                            : "#ef4444",
-                    );
+                pc.oniceconnectionstatechange = () => {
+                    const state = pc.iceConnectionState;
+                    const tone =
+                        state === "connected" || state === "completed"
+                            ? "connected"
+                            : state === "failed" ||
+                                state === "disconnected" ||
+                                state === "closed"
+                              ? "disconnected"
+                              : "waiting";
+                    setStatus(state, tone);
+                };
+                pc.onconnectionstatechange = () => {
+                    const state = pc.connectionState;
+                    const tone =
+                        state === "connected"
+                            ? "connected"
+                            : state === "failed" ||
+                                state === "disconnected" ||
+                                state === "closed"
+                              ? "disconnected"
+                              : "waiting";
+                    setStatus(state, tone);
+                };
                 pc.ondatachannel = (ev) => {
                     dataChannel = ev.channel;
                     bindDataChannel(dataChannel);
@@ -742,18 +805,24 @@
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
                 sendSignal({ type: "offer", sdp: offer });
-                setStatus("Offer sent", "#3b82f6");
+                setStatus("Waiting for peer", "waiting");
             }
 
             function bindDataChannel(channel) {
                 channel.binaryType = "arraybuffer";
                 channel.bufferedAmountLowThreshold = 64 * 1024;
                 channel.onopen = () => {
-                    setStatus("Peer linked", "#10b981");
-                    if (role === "sender") sendQueuedFiles();
+                    setStatus("Peer linked", "connected");
+                    maybeSendQueuedFiles();
                 };
-                channel.onclose = () => setStatus("Closed", "#ef4444");
-                channel.onerror = () => setStatus("Closed", "#ef4444");
+                channel.onclose = () => {
+                    sendLoopActive = false;
+                    setStatus("Closed", "disconnected");
+                };
+                channel.onerror = () => {
+                    sendLoopActive = false;
+                    setStatus("Closed", "disconnected");
+                };
                 channel.onmessage = handleData;
             }
 
@@ -810,14 +879,31 @@
                 }
             }
 
-            async function sendQueuedFiles() {
-                for (const file of queue) {
-                    await sendFile(file);
+            async function maybeSendQueuedFiles() {
+                if (role !== "sender" || sendLoopActive) return;
+                if (!dataChannel || dataChannel.readyState !== "open") return;
+
+                sendLoopActive = true;
+                try {
+                    while (true) {
+                        const nextEntry = queue.find(
+                            (entry) => entry.status === "queued",
+                        );
+                        if (!nextEntry) break;
+                        nextEntry.status = "sending";
+                        renderFiles();
+                        await sendFile(nextEntry);
+                    }
+                } finally {
+                    sendLoopActive = false;
+                    renderFiles();
                 }
             }
 
-            async function sendFile(file) {
+            async function sendFile(entry) {
+                const { file } = entry;
                 const id = Math.floor(Math.random() * 2 ** 32);
+                entry.transferId = id;
                 addTransfer(id, file.name, file.size, "Sending");
                 dataChannel.send(
                     JSON.stringify({
@@ -842,8 +928,12 @@
                         offset < buf.byteLength;
                         offset += chunkSize
                     ) {
-                        if (!dataChannel || dataChannel.readyState !== "open")
+                        if (!dataChannel || dataChannel.readyState !== "open") {
+                            entry.status = "queued";
+                            entry.transferId = null;
+                            renderFiles();
                             return;
+                        }
                         const slice = buf.subarray(offset, offset + chunkSize);
                         const packet = new Uint8Array(4 + slice.byteLength);
                         new DataView(packet.buffer).setUint32(0, id);
@@ -855,7 +945,9 @@
                     }
                 }
                 dataChannel.send(JSON.stringify({ kind: "done", id }));
+                entry.status = "sent";
                 completeTransfer(id, null, "Sent");
+                renderFiles();
             }
 
             function throttle() {
