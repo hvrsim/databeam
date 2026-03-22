@@ -1,10 +1,16 @@
 package server
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io/fs"
 	"log/slog"
+	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"databeam/internal/signaling"
@@ -23,20 +29,41 @@ func New(logger *slog.Logger, manager *signaling.Manager, staticDir string) *Han
 	if logger == nil {
 		logger = slog.Default()
 	}
-	if staticDir == "" {
-		staticDir = "web"
-	}
+	staticFS := resolveStaticFS(logger, staticDir)
 
 	return &Handler{
 		logger:  logger,
 		manager: manager,
-		static:  http.FileServer(http.Dir(staticDir)),
+		static:  http.FileServer(http.FS(staticFS)),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  4096,
 			WriteBufferSize: 4096,
 			CheckOrigin:     func(*http.Request) bool { return true },
 		},
 	}
+}
+
+func resolveStaticFS(logger *slog.Logger, staticDir string) fs.FS {
+	if staticDir == "" {
+		staticDir = "web"
+	}
+
+	candidates := []string{staticDir}
+
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		candidates = append(candidates, filepath.Join(exeDir, staticDir))
+	}
+
+	for _, candidate := range candidates {
+		info, err := os.Stat(candidate)
+		if err == nil && info.IsDir() {
+			return os.DirFS(candidate)
+		}
+	}
+
+	logger.Warn("static directory not found; falling back to current working directory", "dir", staticDir)
+	return os.DirFS(staticDir)
 }
 
 func (h *Handler) Routes() http.Handler {
@@ -137,6 +164,27 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 	n, err := w.ResponseWriter.Write(b)
 	w.size += n
 	return n, err
+}
+
+func (w *statusWriter) Flush() {
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := w.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("response writer does not support hijacking")
+	}
+	return hijacker.Hijack()
+}
+
+func (w *statusWriter) Push(target string, opts *http.PushOptions) error {
+	if pusher, ok := w.ResponseWriter.(http.Pusher); ok {
+		return pusher.Push(target, opts)
+	}
+	return http.ErrNotSupported
 }
 
 func corsMiddleware(next http.Handler) http.Handler {

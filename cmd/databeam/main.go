@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -30,11 +31,9 @@ func run() error {
 	handler := server.New(logger, manager, "web").Routes()
 
 	httpServer := &http.Server{
-		Addr:              ":8080",
+		Addr:              serverAddr(),
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
 
@@ -72,4 +71,18 @@ func newLogger() *slog.Logger {
 	}
 
 	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+}
+
+func serverAddr() string {
+	port := strings.TrimSpace(os.Getenv("PORT"))
+	if port == "" {
+		return ":8080"
+	}
+
+	if _, err := strconv.Atoi(port); err != nil {
+		slog.Warn("invalid PORT value, falling back to 8080", "port", port, "error", err)
+		return ":8080"
+	}
+
+	return ":" + port
 }
